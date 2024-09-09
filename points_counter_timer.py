@@ -155,6 +155,8 @@ class Timer(Driver):
     def play_sound(self, sound_file):
         # Add implementation to play sound file
         print(f"Playing sound: {sound_file}")  # Debug print
+        if sound_file:
+            winsound.PlaySound(sound_file, winsound.SND_FILENAME)
 
 
 # Initialize timers
