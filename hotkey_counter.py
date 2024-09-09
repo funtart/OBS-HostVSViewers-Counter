@@ -1,5 +1,7 @@
 import obspython as S
 import winsound
+import time
+import threading
 
 __version__ = "1.1.0"
 
@@ -29,6 +31,7 @@ class TextContent:
         S.obs_data_release(settings)
         S.obs_source_release(source)
 
+
 class Driver(TextContent):
     def increment(self):
         self.update_text(self.counter_text, 1)
@@ -37,7 +40,6 @@ class Driver(TextContent):
     def play_sound(self, sound_file):
         if sound_file:
             winsound.PlaySound(sound_file, winsound.SND_FILENAME)
-
 
     def decrement(self):
         self.update_text(self.counter_text, -1)
@@ -83,7 +85,7 @@ class Hotkey:
 
 
 class HotkeyDataHolder:
-    htk_copy = None  # this attribute will hold instance of Hotkey
+    htk_copy = None  # this attribute will hold an instance of Hotkey
 
 
 hotkeys_counter_1 = Driver()
@@ -95,9 +97,68 @@ h03 = HotkeyDataHolder()
 h11 = HotkeyDataHolder()
 h12 = HotkeyDataHolder()
 h13 = HotkeyDataHolder()
-# ------------------------------------------------------------------------------
 
 
+# New class for Countdown Timer
+class Timer(Driver):
+    def __init__(self, source_name=None, start_time=60):
+        super().__init__(source_name)
+        self.start_time = start_time  # In seconds
+        self.remaining_time = start_time
+        self.timer_running = False
+        self.timer_thread = None
+
+    def start_timer(self):
+        if not self.timer_running:
+            self.timer_running = True
+            self.timer_thread = threading.Thread(target=self.run_timer)
+            self.timer_thread.start()
+
+    def run_timer(self):
+        while self.timer_running and self.remaining_time > 0:
+            time.sleep(1)  # 1 second interval
+            self.remaining_time -= 1
+            self.update_display()
+
+        if self.remaining_time <= 0:
+            self.timer_running = False
+            self.play_sound(self.sound_file)  # Play sound when timer ends
+
+    def update_display(self):
+        minutes, seconds = divmod(self.remaining_time, 60)
+        self.text_string = f"{minutes:02}:{seconds:02}"
+        source = S.obs_get_source_by_name(self.source_name)
+        settings = S.obs_data_create()
+        S.obs_data_set_string(settings, "text", self.text_string)
+        S.obs_source_update(source, settings)
+        S.obs_data_release(settings)
+        S.obs_source_release(source)
+
+    def reset_timer(self):
+        self.timer_running = False
+        self.remaining_time = self.start_time
+        self.update_display()
+
+    def stop_timer(self):
+        self.timer_running = False
+
+
+# Initialize timers
+countdown_timer = Timer()
+
+
+# Hotkey callbacks for the timer
+def callback_start_timer(pressed):
+    if pressed:
+        countdown_timer.start_timer()
+
+
+def callback_reset_timer(pressed):
+    if pressed:
+        countdown_timer.reset_timer()
+
+
+# Counter 1 hotkey callbacks
 def callback_up1(pressed):
     if pressed:
         return hotkeys_counter_1.increment()
@@ -108,16 +169,17 @@ def callback_down1(pressed):
         return hotkeys_counter_1.decrement()
 
 
-def callback_custom1(*args):
-    hotkeys_counter_1.do_custom(S.obs_data_get_int(args[2], "counter_1"))
-    return True
-
-
 def callback_reset1(pressed):
     if pressed:
         return hotkeys_counter_1.reset()
 
 
+def callback_custom1(*args):
+    hotkeys_counter_1.do_custom(S.obs_data_get_int(args[2], "counter_1"))
+    return True
+
+
+# Counter 2 hotkey callbacks
 def callback_up2(pressed):
     if pressed:
         return hotkeys_counter_2.increment()
@@ -138,10 +200,12 @@ def callback_custom2(*args):
     return True
 
 
+# OBS script description
 def script_description():
     return "COUNTER 2"
 
 
+# OBS script update function
 def script_update(settings):
     hotkeys_counter_1.source_name = S.obs_data_get_string(settings, "source1")
     hotkeys_counter_1.counter_text = S.obs_data_get_string(settings, "counter_text1")
@@ -151,8 +215,12 @@ def script_update(settings):
     hotkeys_counter_2.counter_text = S.obs_data_get_string(settings, "counter_text2")
     hotkeys_counter_2.sound_file = S.obs_data_get_string(settings, "sound_file2")
 
+    countdown_timer.source_name = S.obs_data_get_string(settings, "timer_source")
+    countdown_timer.start_time = S.obs_data_get_int(settings, "start_time")
+    countdown_timer.sound_file = S.obs_data_get_string(settings, "timer_sound_file")
 
 
+# OBS script properties
 def script_properties():
     props = S.obs_properties_create()
 
@@ -198,43 +266,45 @@ def script_properties():
         props, "sound_file2", "[2]Sound for increment", S.OBS_PATH_FILE, "Audio files (*.wav *.mp3)", None
     )
 
-    sources = S.obs_enum_sources()
-    if sources is not None:
-        for source in sources:
-            source_id = S.obs_source_get_unversioned_id(source)
-            if source_id == "text_gdiplus" or source_id == "text_ft2_source":
-                name = S.obs_source_get_name(source)
-                S.obs_property_list_add_string(p1, name, name)
-                S.obs_property_list_add_string(p2, name, name)
+    # Timer properties
+    S.obs_properties_add_int(
+        props, "start_time", "Timer Start Time (seconds)", 1, 3600, 1
+    )
+    p3 = S.obs_properties_add_list(
+        props,
+        "timer_source",
+        "Timer Text Source",
+        S.OBS_COMBO_TYPE_EDITABLE,
+        S.OBS_COMBO_FORMAT_STRING,
+    )
 
-        S.source_list_release(sources)
+    # Add file selector for timer sound
+    S.obs_properties_add_path(
+        props, "timer_sound_file", "Sound for Timer End", S.OBS_PATH_FILE, "Audio files (*.wav *.mp3)", None
+    )
+
     return props
 
 
-
+# OBS script load/save functions
 def script_load(settings):
-    hotkeys_counter_1.counter = S.obs_data_get_int(settings, "counter1")
-    hotkeys_counter_2.counter = S.obs_data_get_int(settings, "counter2")
-    h01.htk_copy = Hotkey(callback_up1, settings, "count_up1")
-    h02.htk_copy = Hotkey(callback_down1, settings, "count_down1")
-    h03.htk_copy = Hotkey(callback_reset1, settings, "reset1")
-
-    h11.htk_copy = Hotkey(callback_up2, settings, "count_up2")
-    h12.htk_copy = Hotkey(callback_down2, settings, "count_down2")
-    h13.htk_copy = Hotkey(callback_reset2, settings, "reset2")
+    Hotkey(callback_up1, settings, 1)
+    Hotkey(callback_down1, settings, 2)
+    Hotkey(callback_reset1, settings, 3)
+    Hotkey(callback_up2, settings, 11)
+    Hotkey(callback_down2, settings, 12)
+    Hotkey(callback_reset2, settings, 13)
+    Hotkey(callback_start_timer, settings, 4)
+    Hotkey(callback_reset_timer, settings, 5)
 
 
 def script_save(settings):
-    S.obs_data_set_int(settings, "counter1", hotkeys_counter_1.counter)
-    S.obs_data_set_int(settings, "counter2", hotkeys_counter_2.counter)
-
-    # Save sound file paths
-    S.obs_data_set_string(settings, "sound_file1", hotkeys_counter_1.sound_file)
-    S.obs_data_set_string(settings, "sound_file2", hotkeys_counter_2.sound_file)
-
-    for h in [h01, h02, h03, h11, h12, h13]:
-        h.htk_copy.save_hotkey()
-
+    h01.htk_copy.save_hotkey()
+    h02.htk_copy.save_hotkey()
+    h03.htk_copy.save_hotkey()
+    h11.htk_copy.save_hotkey()
+    h12.htk_copy.save_hotkey()
+    h13.htk_copy.save_hotkey()
 
 
 description = """
