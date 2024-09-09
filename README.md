@@ -1,4 +1,4 @@
-# Obscounter
+# Obscounter + Countdown Timer + Sound Alerts
 
 Python implementation of hotkey counter in OBS Studio.
 
