@@ -1,4 +1,5 @@
 import obspython as S
+import winsound
 
 __version__ = "1.1.0"
 
@@ -28,10 +29,15 @@ class TextContent:
         S.obs_data_release(settings)
         S.obs_source_release(source)
 
-
 class Driver(TextContent):
     def increment(self):
         self.update_text(self.counter_text, 1)
+        self.play_sound(self.sound_file)
+
+    def play_sound(self, sound_file):
+        if sound_file:
+            winsound.PlaySound(sound_file, winsound.SND_FILENAME)
+
 
     def decrement(self):
         self.update_text(self.counter_text, -1)
@@ -139,14 +145,18 @@ def script_description():
 def script_update(settings):
     hotkeys_counter_1.source_name = S.obs_data_get_string(settings, "source1")
     hotkeys_counter_1.counter_text = S.obs_data_get_string(settings, "counter_text1")
+    hotkeys_counter_1.sound_file = S.obs_data_get_string(settings, "sound_file1")
 
     hotkeys_counter_2.source_name = S.obs_data_get_string(settings, "source2")
     hotkeys_counter_2.counter_text = S.obs_data_get_string(settings, "counter_text2")
+    hotkeys_counter_2.sound_file = S.obs_data_get_string(settings, "sound_file2")
+
 
 
 def script_properties():
     props = S.obs_properties_create()
 
+    # Counter 1 properties
     S.obs_properties_add_text(
         props, "counter_text1", "[1]Set counter text", S.OBS_TEXT_DEFAULT
     )
@@ -162,6 +172,12 @@ def script_properties():
         S.OBS_COMBO_FORMAT_STRING,
     )
 
+    # Add file selector for counter 1 sound
+    S.obs_properties_add_path(
+        props, "sound_file1", "[1]Sound for increment", S.OBS_PATH_FILE, "Audio files (*.wav *.mp3)", None
+    )
+
+    # Counter 2 properties
     S.obs_properties_add_text(
         props, "counter_text2", "[2]Set counter text", S.OBS_TEXT_DEFAULT
     )
@@ -176,6 +192,12 @@ def script_properties():
         S.OBS_COMBO_TYPE_EDITABLE,
         S.OBS_COMBO_FORMAT_STRING,
     )
+
+    # Add file selector for counter 2 sound
+    S.obs_properties_add_path(
+        props, "sound_file2", "[2]Sound for increment", S.OBS_PATH_FILE, "Audio files (*.wav *.mp3)", None
+    )
+
     sources = S.obs_enum_sources()
     if sources is not None:
         for source in sources:
@@ -187,6 +209,7 @@ def script_properties():
 
         S.source_list_release(sources)
     return props
+
 
 
 def script_load(settings):
@@ -204,8 +227,14 @@ def script_load(settings):
 def script_save(settings):
     S.obs_data_set_int(settings, "counter1", hotkeys_counter_1.counter)
     S.obs_data_set_int(settings, "counter2", hotkeys_counter_2.counter)
+
+    # Save sound file paths
+    S.obs_data_set_string(settings, "sound_file1", hotkeys_counter_1.sound_file)
+    S.obs_data_set_string(settings, "sound_file2", hotkeys_counter_2.sound_file)
+
     for h in [h01, h02, h03, h11, h12, h13]:
         h.htk_copy.save_hotkey()
+
 
 
 description = """
