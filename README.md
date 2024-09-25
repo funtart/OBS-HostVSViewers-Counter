@@ -11,7 +11,7 @@ For Windows install [python3.6](https://www.python.org/downloads/release/python-
 # Installation 
 
 1. Download [source code](https://github.com/upgradeQ/Obscounter/archive/master.zip).
-2. Unzip the file to be able to access `hotkey_counter.py`. Remember the file location because you will need this later.
+2. Unzip the file to be able to access `points_counter_timer.py`. Remember the file location because you will need this later.
 
 # Usage
 
@@ -41,14 +41,6 @@ For Windows install [python3.6](https://www.python.org/downloads/release/python-
 
 ## How do I use more counters?
 
-If you need additional counters, duplicate the `hotkey_counter.py` file and save it with a new filename (e.g. `hotkey_counter2.py`), and repeat the process.
+If you need additional counters, duplicate the `points_counter_timer.py` file and save it with a new filename (e.g. `points_counter_timer2.py`), and repeat the process.
 
 
-# Alternatives
-
-There is a [`Lua alternative`](https://gist.github.com/tid-kijyun/477c723ea42d22903ebe6b6cee3f77a1) with helpful blogpost (JP)
-on how to install and setup those kinds of scripts in OBS. Lua support in OBS Studio is built-in , so you don't need install anything extra.
-
-# Contribute 
-
-Contributions are welcome.
